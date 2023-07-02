@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import * as Redis from 'ioredis';
 import { bindThis } from '@/decorators.js';
 
 export class RedisKVCache<T> {
@@ -8,7 +8,7 @@ export class RedisKVCache<T> {
 	private memoryCache: MemoryKVCache<T>;
 	private fetcher: (key: string) => Promise<T>;
 	private toRedisConverter: (value: T) => string;
-	private fromRedisConverter: (value: string) => T;
+	private fromRedisConverter: (value: string) => T | undefined;
 
 	constructor(redisClient: RedisKVCache<T>['redisClient'], name: RedisKVCache<T>['name'], opts: {
 		lifetime: RedisKVCache<T>['lifetime'];
@@ -38,7 +38,7 @@ export class RedisKVCache<T> {
 			await this.redisClient.set(
 				`kvcache:${this.name}:${key}`,
 				this.toRedisConverter(value),
-				'ex', Math.round(this.lifetime / 1000),
+				'EX', Math.round(this.lifetime / 1000),
 			);
 		}
 	}
@@ -83,6 +83,16 @@ export class RedisKVCache<T> {
 
 		// TODO: イベント発行して他プロセスのメモリキャッシュも更新できるようにする
 	}
+
+	@bindThis
+	public gc() {
+		this.memoryCache.gc();
+	}
+
+	@bindThis
+	public dispose() {
+		this.memoryCache.dispose();
+	}
 }
 
 export class RedisSingleCache<T> {
@@ -92,7 +102,7 @@ export class RedisSingleCache<T> {
 	private memoryCache: MemorySingleCache<T>;
 	private fetcher: () => Promise<T>;
 	private toRedisConverter: (value: T) => string;
-	private fromRedisConverter: (value: string) => T;
+	private fromRedisConverter: (value: string) => T | undefined;
 
 	constructor(redisClient: RedisSingleCache<T>['redisClient'], name: RedisSingleCache<T>['name'], opts: {
 		lifetime: RedisSingleCache<T>['lifetime'];
@@ -122,7 +132,7 @@ export class RedisSingleCache<T> {
 			await this.redisClient.set(
 				`singlecache:${this.name}`,
 				this.toRedisConverter(value),
-				'ex', Math.round(this.lifetime / 1000),
+				'EX', Math.round(this.lifetime / 1000),
 			);
 		}
 	}
@@ -174,10 +184,15 @@ export class RedisSingleCache<T> {
 export class MemoryKVCache<T> {
 	public cache: Map<string, { date: number; value: T; }>;
 	private lifetime: number;
+	private gcIntervalHandle: NodeJS.Timer;
 
 	constructor(lifetime: MemoryKVCache<never>['lifetime']) {
 		this.cache = new Map();
 		this.lifetime = lifetime;
+
+		this.gcIntervalHandle = setInterval(() => {
+			this.gc();
+		}, 1000 * 60 * 3);
 	}
 
 	@bindThis
@@ -200,7 +215,7 @@ export class MemoryKVCache<T> {
 	}
 
 	@bindThis
-	public delete(key: string) {
+	public delete(key: string): void {
 		this.cache.delete(key);
 	}
 
@@ -254,6 +269,21 @@ export class MemoryKVCache<T> {
 			this.set(key, value);
 		}
 		return value;
+	}
+
+	@bindThis
+	public gc(): void {
+		const now = Date.now();
+		for (const [key, { date }] of this.cache.entries()) {
+			if ((now - date) > this.lifetime) {
+				this.cache.delete(key);
+			}
+		}
+	}
+
+	@bindThis
+	public dispose(): void {
+		clearInterval(this.gcIntervalHandle);
 	}
 }
 

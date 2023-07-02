@@ -7,17 +7,17 @@
 			<XSidebar/>
 		</div>
 		<div v-else ref="widgetsLeft" class="widgets left">
-			<XWidgets place="left" :margin-top="'var(--margin)'" @mounted="attachSticky(widgetsLeft)"/>
+			<XWidgets place="left" :marginTop="'var(--margin)'" @mounted="attachSticky(widgetsLeft)"/>
 		</div>
 
-		<main class="main" :style="{ background: pageMetadata?.value?.bg }" @contextmenu.stop="onContextmenu">
+		<main class="main" @contextmenu.stop="onContextmenu">
 			<div class="content" style="container-type: inline-size;">
 				<RouterView/>
 			</div>
 		</main>
 
 		<div v-if="isDesktop" ref="widgetsRight" class="widgets right">
-			<XWidgets :place="showMenuOnTop ? 'right' : null" :margin-top="showMenuOnTop ? '0' : 'var(--margin)'" @mounted="attachSticky(widgetsRight)"/>
+			<XWidgets :place="showMenuOnTop ? 'right' : null" :marginTop="showMenuOnTop ? '0' : 'var(--margin)'" @mounted="attachSticky(widgetsRight)"/>
 		</div>
 	</div>
 
@@ -250,6 +250,7 @@ onMounted(() => {
 		> .widgets {
 			//--panelBorder: none;
 			width: 300px;
+			padding-bottom: calc(var(--margin) + env(safe-area-inset-bottom, 0px));
 
 			@media (max-width: $widgets-hide-threshold) {
 				display: none;
@@ -304,7 +305,7 @@ onMounted(() => {
 		right: 0;
 		z-index: 1001;
 		height: 100dvh;
-		padding: var(--margin);
+		padding: var(--margin) var(--margin) calc(var(--margin) + env(safe-area-inset-bottom, 0px));
 		box-sizing: border-box;
 		overflow: auto;
 		background: var(--bg);

@@ -3,6 +3,8 @@
 
 import * as crypto from 'node:crypto';
 
+export const aidRegExp = /^[0-9a-z]{10}$/;
+
 const TIME2000 = 946684800000;
 let counter = crypto.randomBytes(2).readUInt16LE(0);
 
@@ -19,7 +21,7 @@ function getNoise(): string {
 
 export function genAid(date: Date): string {
 	const t = date.getTime();
-	if (isNaN(t)) throw 'Failed to create AID: Invalid Date';
+	if (isNaN(t)) throw new Error('Failed to create AID: Invalid Date');
 	counter++;
 	return getTime(t) + getNoise();
 }
